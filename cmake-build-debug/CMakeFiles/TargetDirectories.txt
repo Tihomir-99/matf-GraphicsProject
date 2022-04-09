@@ -1,0 +1,10 @@
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/CMakeFiles/project_base.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/CMakeFiles/STB_IMAGE.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/glad/CMakeFiles/edit_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/glad/CMakeFiles/rebuild_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/glad/CMakeFiles/glad.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/imgui/CMakeFiles/rebuild_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/imgui/CMakeFiles/edit_cache.dir
+/home/tihomir/Desktop/Matf_Project/cmake-build-debug/libs/imgui/CMakeFiles/imgui.dir
