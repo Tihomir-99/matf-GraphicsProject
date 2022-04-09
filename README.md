@@ -1,11 +1,10 @@
-# project_base
-Prazan projekat sa pratećim bibliotekama koje koristimo na času. 
+# Manual
 
-# Uputstvo
-1. `git clone https://github.com/matf-racunarska-grafika/project_base.git`
-2. CLion -> Open -> path/to/my/project_base
-3. Main se nalazi u src/main.cpp
-4. Cpp fajlovi idu u src folder
-5. Zaglavlja (h i hpp) fajlovi idu u include
-6. Šejderi idu u folder shaders. `Vertex shader` ima ekstenziju `.vs`, `fragment shader` ima ekstenziju `.fs`
-7. ALT+SHIFT+F10 -> project_base -> run
+    1.Use WASD for moving around the space
+    2.Use LShift for faster movement speed
+    3.Effects Num.1-HDR (Press q to reduce exposure and e to increase it)
+              Num.2-Invert Color
+              Num.3-Grey scale
+    4.Press Enter to leave cube-shuttle, and Enter again to enter it
+    5.Press F for flashlight
+    6.Use (fn)\F1,F2,F3,F4 for different perspectives on planets
