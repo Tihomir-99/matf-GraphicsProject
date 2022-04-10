@@ -5,6 +5,8 @@ out vec4 FragColor;
 in vec2 TexCoords;
 
 uniform sampler2D hdrBuffer;
+uniform sampler2D bloomBlur;
+uniform bool bloom;
 uniform bool hdr;
 uniform bool invert;
 uniform bool greyScale;
@@ -14,6 +16,10 @@ void main(){
 
     const float gamma = 2.2;
     vec3 hdrColor=texture(hdrBuffer,TexCoords).rgb;
+    vec3 bloomColor=texture(bloomBlur,TexCoords).rgb;
+    if(bloom){
+        hdrColor+=bloomColor;
+    }
     if(hdr){
         vec3 result = vec3(1.0) - exp(-hdrColor*exposure);
         result=pow(result,vec3(1.0/gamma));

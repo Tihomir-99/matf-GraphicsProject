@@ -38,11 +38,12 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 bool hdr=false;
 bool invert=false;
+bool bloom=false;
 bool FlashLight=true;
 bool greyScale=false;
 float exposure=1.0f;
-bool inShattle=true;
-glm::vec3 shattlePosition;
+bool inShuttle=true;
+glm::vec3 shuttlePosition;
 
 
 // camera
@@ -171,7 +172,8 @@ int main() {
     Shader skyboxShader("resources/shaders/skybox.vs","resources/shaders/skybox.fs");
     Shader rockShader("resources/shaders/Rocks.vs","resources/shaders/Rocks.fs");
     Shader hdrShader("resources/shaders/hdr.vs","resources/shaders/hdr.fs");
-    Shader cubeShattleShader("resources/shaders/cubeShattle.vs","resources/shaders/cubeShattle.fs");
+    Shader cubeShuttleShader("resources/shaders/cubeShuttle.vs","resources/shaders/cubeShuttle.fs");
+    Shader blurShader("resources/shaders/blur.vs","resources/shaders/blur.fs");
 
     float rockVertices[] ={
             //front
@@ -225,7 +227,7 @@ int main() {
     unsigned int rockTexSpecular = loadTexture("resources/textures/rock/tileable1c.png");
 
 
-    float cubeShattleVertices[] = {
+    float cubeShuttleVertices[] = {
             // positions          // normals           // texture coords
             -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
             0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
@@ -277,7 +279,7 @@ int main() {
     glGenBuffers(1, &cubeVBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeShattleVertices), cubeShattleVertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeShuttleVertices), cubeShuttleVertices, GL_STATIC_DRAW);
 
     glBindVertexArray(cubeVAO);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
@@ -295,27 +297,51 @@ int main() {
 
     unsigned int hdrFBO;
     glGenFramebuffers(1,&hdrFBO);
-    unsigned int collorBuffer;
-    glGenTextures(1,&collorBuffer);
-    glBindTexture(GL_TEXTURE_2D,collorBuffer);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA16F,SCR_WIDTH,SCR_HEIGHT,0,GL_RGBA,GL_FLOAT,NULL);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-
+    glBindFramebuffer(GL_FRAMEBUFFER,hdrFBO);
+    unsigned int collorBuffer[2];
+    glGenTextures(2,collorBuffer);
+    for(int i=0;i<2;i++) {
+        glBindTexture(GL_TEXTURE_2D, collorBuffer[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0+i,GL_TEXTURE_2D,collorBuffer[i],0);
+    }
     unsigned int rboDepth;
     glGenRenderbuffers(1,&rboDepth);
     glBindRenderbuffer(GL_RENDERBUFFER,rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT,SCR_WIDTH,SCR_HEIGHT);
-
-
-    glBindFramebuffer(GL_FRAMEBUFFER,hdrFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,collorBuffer,0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,rboDepth);
+
+    unsigned int attachment[2] = {GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2,attachment);
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){
         ASSERT(false,"Framebuffer not complete!");
     }
     glBindFramebuffer(GL_FRAMEBUFFER,0);
+
+
+    unsigned int pingpongFBO[2];
+    unsigned int pingpongColorBuffers[2];
+    glGenFramebuffers(2, pingpongFBO);
+    glGenTextures(2, pingpongColorBuffers);
+    for (unsigned int i = 0; i < 2; ++i) {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpongColorBuffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongColorBuffers[i], 0);
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){
+            ASSERT(false,"Framebuffer not complete!");
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 
@@ -418,8 +444,16 @@ int main() {
     rockShader.setInt("diffuseMap",0);
     rockShader.setInt("specularMap",1);
 
-    cubeShattleShader.use();
-    cubeShattleShader.setInt("diffuse",0);
+    cubeShuttleShader.use();
+    cubeShuttleShader.setInt("diffuse",0);
+
+    blurShader.use();
+    blurShader.setInt("image",0);
+
+    hdrShader.use();
+    hdrShader.setInt("hdrBuffer",0);
+    hdrShader.setInt("bloomBlur",1);
+
 
     // load models----------------------------------------------
 
@@ -507,25 +541,12 @@ int main() {
         rockShader.setInt("FlashLight",FlashLight);
         planetShader.setInt("FlashLight",FlashLight);
 
-        cubeShattleShader.use();
-        cubeShattleShader.setMat4("projection", projection);
-        cubeShattleShader.setMat4("view", view);
-        cubeShattleShader.setVec3("viewPosition", camera.Position);
+        cubeShuttleShader.use();
+        cubeShuttleShader.setMat4("projection", projection);
+        cubeShuttleShader.setMat4("view", view);
+        cubeShuttleShader.setVec3("viewPosition", camera.Position);
 
 
-        //SkyBox----------------------------------
-        glDepthMask(GL_FALSE);
-        glDepthFunc(GL_LEQUAL);
-        skyboxShader.use();
-        skyboxShader.setMat4("view",glm::mat4(glm::mat3(view)));
-        skyboxShader.setMat4("projection",projection);
-        glBindVertexArray(skyboxVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_CUBE_MAP,cubemapTexture);
-        glDrawArrays(GL_TRIANGLES,0,36);
-        glBindVertexArray(0);
-        glDepthMask(GL_TRUE);
-        glDepthFunc(GL_LESS);
 
 
         // render sun--------------------------------------------
@@ -602,7 +623,7 @@ int main() {
         glDisable(GL_CULL_FACE);
 
 
-        //cubeShattle that's transparent only from inside---------------------------
+        //cubeShuttle that's transparent only from inside---------------------------
 
         glEnable(GL_CULL_FACE);
         for(int i=0;i<2;i++){
@@ -610,17 +631,17 @@ int main() {
                 glCullFace(GL_FRONT);
             else
                 glCullFace(GL_BACK);
-            cubeShattleShader.use();
-            cubeShattleShader.setInt("i",i);
+            cubeShuttleShader.use();
+            cubeShuttleShader.setInt("i",i);
             model=glm::mat4(1.0f);
-            if(inShattle){
-                shattlePosition=camera.Position;
+            if(inShuttle){
+                shuttlePosition=camera.Position;
                 model=glm::translate(model,camera.Position);
             }
             else{
-                model=glm::translate(model,shattlePosition);
+                model=glm::translate(model,shuttlePosition);
             }
-            cubeShattleShader.setMat4("model",model);
+            cubeShuttleShader.setMat4("model",model);
             glBindVertexArray(cubeVAO);
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D,cubeTexture);
@@ -629,11 +650,52 @@ int main() {
         }
         glDisable(GL_CULL_FACE);
 
+
+        //SkyBox----------------------------------
+        glDepthMask(GL_FALSE);
+        glDepthFunc(GL_LEQUAL);
+        skyboxShader.use();
+        skyboxShader.setMat4("view",glm::mat4(glm::mat3(view)));
+        skyboxShader.setMat4("projection",projection);
+        glBindVertexArray(skyboxVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_CUBE_MAP,cubemapTexture);
+        glDrawArrays(GL_TRIANGLES,0,36);
+        glBindVertexArray(0);
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
+
+
+
         glBindFramebuffer(GL_FRAMEBUFFER,0);
+
+        bool horizontal = true;
+        bool first_iteration = true;
+        blurShader.use();
+        unsigned int amount = 10;
+        for (unsigned int i = 0; i < amount; ++i) {
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+            blurShader.setBool("horizontal", horizontal);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, first_iteration ? collorBuffer[i] : pingpongColorBuffers[!horizontal]);
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(0);
+            horizontal = !horizontal;
+            if (first_iteration) {
+                first_iteration = false;
+            }
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER,0);
+
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         hdrShader.use();
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D,collorBuffer);
+        glBindTexture(GL_TEXTURE_2D,collorBuffer[0]);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D,pingpongColorBuffers[!horizontal]);
+        hdrShader.setInt("bloom",bloom);
         hdrShader.setInt("hdr",hdr);
         hdrShader.setFloat("exposure",exposure);
         hdrShader.setInt("invert",invert);
@@ -748,7 +810,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         greyScale=!greyScale;
     }
     if(key==GLFW_KEY_ENTER && action==GLFW_PRESS){
-        inShattle=!inShattle;
+        inShuttle=!inShuttle;
     }
 
     if(key==GLFW_KEY_Q && action==GLFW_PRESS){
@@ -771,6 +833,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             spec=glm::vec3(1);
             FlashLight=!FlashLight;
         }
+    }
+    if(key==GLFW_KEY_B && action==GLFW_PRESS){
+        bloom=!bloom;
     }
 }
 unsigned int loadTexture(char const * path)
